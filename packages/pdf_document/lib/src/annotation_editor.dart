@@ -148,6 +148,19 @@ enum PdfLineEnding {
   return (read(0), read(1));
 }
 
+/// The arrow ending on a callout's leader line (/LE, §12.5.6.19), or null
+/// when [annotation] is not a FreeText callout. Defaults to
+/// [PdfLineEnding.openArrow] when /LE is absent or unrecognized - the same
+/// default [PdfAnnotationEditing.addCallout] draws. Lets UI (and text-edit
+/// rewrites) read the current ending without an editor instance (mirrors
+/// [pdfLineEndings]).
+PdfLineEnding? pdfCalloutEnding(PdfAnnotation annotation) {
+  if (!annotation.isCallout) return null;
+  final le = annotation.document.cos.resolve(annotation.dict['LE']);
+  if (le is CosName) return PdfLineEnding.fromName(le.value);
+  return PdfLineEnding.openArrow;
+}
+
 /// Slices ink [strokes] with one stamp of a circular eraser swept from
 /// [from] to [to] (a capsule of [radius]): every part of a stroke's
 /// centerline within [radius] of that segment is removed, splitting
@@ -972,7 +985,8 @@ extension PdfAnnotationEditing on PdfEditor {
     // transparency group and apply the constant alpha to the group at its
     // `Do`, so overlapping round caps composite opaquely inside instead of
     // darkening every join into a dot.
-    final innerRef = _updater.addObject(_form(rect, w, transparencyGroup: true));
+    final innerRef =
+        _updater.addObject(_form(rect, w, transparencyGroup: true));
     return (
       rect,
       ContentWriter()
@@ -3690,10 +3704,8 @@ extension PdfAnnotationEditing on PdfEditor {
   /// private `/DartPdfImageCrop` marker. A full-image crop drops the marker so
   /// an uncropped picture carries none. Read back by [PdfAnnotation.imageStampCrop].
   static void _writeImageCropMarker(CosDictionary dict, PdfRect crop) {
-    final full = crop.left <= 0 &&
-        crop.bottom <= 0 &&
-        crop.right >= 1 &&
-        crop.top >= 1;
+    final full =
+        crop.left <= 0 && crop.bottom <= 0 && crop.right >= 1 && crop.top >= 1;
     if (full) {
       dict.entries.remove('DartPdfImageCrop');
     } else {
@@ -3732,8 +3744,8 @@ extension PdfAnnotationEditing on PdfEditor {
       w.save();
       _orientedCounterRotation(w, rect, pageRotation);
     }
-    final cropped = crop.width < 1 || crop.height < 1 ||
-        crop.left > 0 || crop.bottom > 0;
+    final cropped =
+        crop.width < 1 || crop.height < 1 || crop.left > 0 || crop.bottom > 0;
     w.save();
     if (cropped) {
       // The scaled-up picture overflows the visual box; the box clips it so
@@ -4544,7 +4556,8 @@ extension PdfAnnotationEditing on PdfEditor {
     form.dictionary['Matrix'] =
         CosArray([for (final v in matrix.toList()) CosReal(v)]);
     final bbox = pdfRectFrom(document.cos, form.dictionary['BBox']);
-    if (bbox != null) dict['Rect'] = _rectArray(boundsUnderMatrix(matrix, bbox));
+    if (bbox != null)
+      dict['Rect'] = _rectArray(boundsUnderMatrix(matrix, bbox));
 
     (double, double) map(double x, double y) => local.apply(x, y);
     for (final key in const ['QuadPoints', 'L', 'Vertices', 'CL']) {
@@ -5567,8 +5580,7 @@ extension PdfAnnotationEditing on PdfEditor {
       if (cornerRadius > 0) {
         // Pull the radius in with the stroke so the rounded outer edge stays
         // inside /Rect; roundedRect clamps it to half the smaller side.
-        w.roundedRect(x, y, width, height,
-            math.max(0.0, cornerRadius - inset));
+        w.roundedRect(x, y, width, height, math.max(0.0, cornerRadius - inset));
       } else {
         w.rect(x, y, width, height);
       }

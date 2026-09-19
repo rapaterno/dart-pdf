@@ -384,8 +384,7 @@ class PdfEditingController extends ChangeNotifier {
         _trustStore = trustStore,
         preferences = preferences ?? PdfEditingPreferences(),
         pageClipboard = pageClipboard ?? PdfPageClipboard.instance,
-        snapshotClipboard =
-            snapshotClipboard ?? PdfSnapshotClipboard.instance {
+        snapshotClipboard = snapshotClipboard ?? PdfSnapshotClipboard.instance {
     this.preferences.addListener(notifyListeners);
     // rebuild paste affordances live as the shared page clipboard fills or
     // clears - from this controller or from another document tab sharing it
@@ -879,8 +878,8 @@ class PdfEditingController extends ChangeNotifier {
     PdfSignatureAppearance? appearance,
   }) async {
     final before = bytes;
-    final signed = PdfEditor(PdfDocument.open(before, password: _password))
-        .saveSelfSigned(
+    final signed =
+        PdfEditor(PdfDocument.open(before, password: _password)).saveSelfSigned(
       identity: identity,
       fieldName: fieldName,
       reason: reason,
@@ -910,8 +909,9 @@ class PdfEditingController extends ChangeNotifier {
     PdfSignatureAppearance? appearance,
   }) async {
     final before = bytes;
-    final signed = await PdfEditor(PdfDocument.open(before, password: _password))
-        .saveSelfSignedPades(
+    final signed =
+        await PdfEditor(PdfDocument.open(before, password: _password))
+            .saveSelfSignedPades(
       identity: identity,
       level: PdfPadesLevel.bT,
       timestampClient: timestampClient,
@@ -1262,10 +1262,11 @@ class PdfEditingController extends ChangeNotifier {
         // listener attaches, and drop it when the last one leaves. Every emit
         // then diffs against this cached state instead of re-opening the
         // pre-edit bytes into a second full document (#416).
-        onListen: () => _annotationBaseline =
-            pdfCollectAnnotationStates(_document),
+        onListen: () =>
+            _annotationBaseline = pdfCollectAnnotationStates(_document),
         onCancel: () => _annotationBaseline = null,
-      )).stream;
+      ))
+          .stream;
 
   /// The annotation states of [_document] as of the last emit, kept live only
   /// while [annotationChanges] has a listener. The pre-edit side of each diff,
@@ -1294,7 +1295,8 @@ class PdfEditingController extends ChangeNotifier {
     _annotationBaseline =
         pages == null ? after : baseline.withPagesReplaced(pages, after);
 
-    if (_applyingRemote) return; // baseline advanced; don't echo the remote edit
+    if (_applyingRemote)
+      return; // baseline advanced; don't echo the remote edit
     final changes = pdfDiffAnnotationStates(before, after);
     if (changes.isNotEmpty) feed.add(changes);
   }
@@ -1721,8 +1723,7 @@ class PdfEditingController extends ChangeNotifier {
   /// detail of the resolved stamp text - setting it never notifies listeners.
   ui.Locale? uiLocale;
 
-  String? get _stampLocaleName =>
-      (uiLocale ?? preferences.locale)?.toString();
+  String? get _stampLocaleName => (uiLocale ?? preferences.locale)?.toString();
 
   /// Field names the stamp editor should offer for insertion.
   ///
@@ -1753,8 +1754,10 @@ class PdfEditingController extends ChangeNotifier {
   Map<String, String> _resolvedStampTemplateValues() {
     final now = stampTemplateClock();
     final localeName = _stampLocaleName;
-    final date = preferences.stampDateFormat.format(now, localeName: localeName);
-    final time = preferences.stampTimeFormat.format(now, localeName: localeName);
+    final date =
+        preferences.stampDateFormat.format(now, localeName: localeName);
+    final time =
+        preferences.stampTimeFormat.format(now, localeName: localeName);
     return {
       'date': date,
       'time': time,
@@ -4631,7 +4634,8 @@ class PdfEditingController extends ChangeNotifier {
     // a thread edit changes no page graphics: const [] skips re-raster
     // while still diffing for the change feed (see apply's pages contract)
     return apply(
-      (e) => e.replyToAnnotation(pageIndex, target, contents, author: preferences.author),
+      (e) => e.replyToAnnotation(pageIndex, target, contents,
+          author: preferences.author),
     );
   }
 
@@ -4643,7 +4647,8 @@ class PdfEditingController extends ChangeNotifier {
     PdfReviewState state,
   ) =>
       apply(
-        (e) => e.setReviewState(pageIndex, target, state, author: preferences.author),
+        (e) => e.setReviewState(pageIndex, target, state,
+            author: preferences.author),
       );
 
   /// Marks [target]'s thread resolved (review state `Completed`).
@@ -5174,7 +5179,9 @@ class PdfEditingController extends ChangeNotifier {
       case 'Ink':
         return PdfEditTool.ink;
       case 'FreeText':
-        return annotation.isCallout ? PdfEditTool.callout : PdfEditTool.freeText;
+        return annotation.isCallout
+            ? PdfEditTool.callout
+            : PdfEditTool.freeText;
       case 'Text':
         return PdfEditTool.note;
       case 'Stamp':
@@ -5313,7 +5320,10 @@ class PdfEditingController extends ChangeNotifier {
             strokeWidth: strokeWidth,
             opacity: opacity,
             dashPattern: recomputeDash
-                ? (style.dashArray(width, scale: scale ?? preferences.lineScale),)
+                ? (
+                    style.dashArray(width,
+                        scale: scale ?? preferences.lineScale),
+                  )
                 : null,
             cloudScale: scale,
             // rounding only lands on /Square rectangles; other subtypes
@@ -6462,36 +6472,74 @@ class PdfEditingController extends ChangeNotifier {
         switch (annotation.subtype) {
           case 'FreeText':
             final style = _freeTextFontOf(annotation);
-            // the parsed style carries what /C alone can't: the text color
-            // (from /DA) plus any background fill and border; a wrapped
-            // [fill]/[border] overrides it (see restyleSelectedText)
             final parsed = annotation.freeTextStyle;
-            e.addFreeText(
-              page,
-              rect,
-              text,
-              fontSize: size ?? style.size,
-              font: font ?? style.font,
-              // keep the box's own alignment unless this edit changes it
-              align: align ?? parsed?.alignment ?? PdfTextAlign.left,
-              color: parsed?.color ?? color ?? 0x000000,
-              fillColor: fill != null ? fill.$1 : parsed?.fillColor,
-              borderColor: border != null ? border.$1 : parsed?.borderColor,
-              borderWidth: borderWidth ??
-                  ((parsed?.borderWidth ?? 0) > 0 ? parsed!.borderWidth : 1),
-              // keep the box's own spacing/decoration unless changed
-              lineSpacing: lineSpacing ??
-                  parsed?.lineSpacing ??
-                  kPdfFreeTextDefaultLineSpacing,
-              charSpacing: charSpacing ?? parsed?.charSpacing ?? 0,
-              horizontalScale: fontWidth ??
-                  parsed?.horizontalScale ??
-                  kPdfFreeTextDefaultHorizontalScale,
-              underline: underline ?? parsed?.underline ?? false,
-              pageRotation: _page(page).rotation,
-              author: by,
-              name: nm,
-            );
+            if (annotation.isCallout) {
+              final line = annotation.calloutLine;
+              final box = annotation.calloutBox ?? rect;
+              final target = (line != null && line.isNotEmpty)
+                  ? line.first
+                  : (box.left, box.top);
+              final strokeColor = border != null
+                  ? (border.$1 ?? parsed?.borderColor ?? 0xD02020)
+                  : (parsed?.borderColor ?? 0xD02020);
+              final strokeWidth = borderWidth ??
+                  ((parsed?.borderWidth ?? 0) > 0 ? parsed!.borderWidth : 1);
+
+              e.addCallout(
+                page,
+                box,
+                text,
+                target,
+                fontSize: size ?? style.size,
+                font: font ?? style.font,
+                align: align ?? parsed?.alignment ?? PdfTextAlign.left,
+                color: parsed?.color ?? color ?? 0x000000,
+                fillColor: fill != null ? fill.$1 : parsed?.fillColor,
+                strokeColor: strokeColor,
+                strokeWidth: strokeWidth,
+                ending: pdfCalloutEnding(annotation) ?? PdfLineEnding.openArrow,
+                pageRotation: _page(page).rotation,
+                author: by,
+                name: nm,
+              );
+
+              // addCallout re-derives the leader's box attachment from box/target;
+              // snap it back so a dragged base doesn't jump on every keystroke.
+              if (line != null && line.length >= 2) {
+                final added = _document.page(page).annotations;
+                if (added.isNotEmpty) {
+                  e.reshapeCallout(page, added.last, attach: line.last);
+                }
+              }
+            } else {
+              e.addFreeText(
+                page,
+                rect,
+                text,
+                fontSize: size ?? style.size,
+                font: font ?? style.font,
+                // keep the box's own alignment unless this edit changes it
+                align: align ?? parsed?.alignment ?? PdfTextAlign.left,
+                color: parsed?.color ?? color ?? 0x000000,
+                fillColor: fill != null ? fill.$1 : parsed?.fillColor,
+                borderColor: border != null ? border.$1 : parsed?.borderColor,
+                borderWidth: borderWidth ??
+                    ((parsed?.borderWidth ?? 0) > 0 ? parsed!.borderWidth : 1),
+                // keep the box's own spacing/decoration unless changed
+                lineSpacing: lineSpacing ??
+                    parsed?.lineSpacing ??
+                    kPdfFreeTextDefaultLineSpacing,
+                charSpacing: charSpacing ?? parsed?.charSpacing ?? 0,
+                horizontalScale: fontWidth ??
+                    parsed?.horizontalScale ??
+                    kPdfFreeTextDefaultHorizontalScale,
+                underline: underline ?? parsed?.underline ?? false,
+                pageRotation: _page(page).rotation,
+                author: by,
+                name: nm,
+              );
+            }
+
           case 'Stamp':
             e.addStamp(
               page,
@@ -6554,25 +6602,61 @@ class PdfEditingController extends ChangeNotifier {
     final changed = apply(
       (e) {
         e.removeAnnotation(page, annotation);
-        e.addFreeTextRich(
-          page,
-          rect,
-          runs,
-          align: align ?? parsed?.alignment ?? PdfTextAlign.left,
-          fillColor: parsed?.fillColor,
-          borderColor: parsed?.borderColor,
-          borderWidth: (parsed?.borderWidth ?? 0) > 0 ? parsed!.borderWidth : 1,
-          lineSpacing: lineSpacing ??
-              parsed?.lineSpacing ??
-              kPdfFreeTextDefaultLineSpacing,
-          charSpacing: charSpacing ?? parsed?.charSpacing ?? 0,
-          horizontalScale: fontWidth ??
-              parsed?.horizontalScale ??
-              kPdfFreeTextDefaultHorizontalScale,
-          pageRotation: _page(page).rotation,
-          author: by,
-          name: nm,
-        );
+        if (annotation.isCallout) {
+          final line = annotation.calloutLine;
+          final box = annotation.calloutBox ?? rect;
+          final target = (line != null && line.isNotEmpty)
+              ? line.first
+              : (box.left, box.top);
+          final base = runs.isNotEmpty ? runs.first : null;
+
+          e.addCallout(
+            page,
+            box,
+            runs.map((r) => r.text).join(),
+            target,
+            fontSize: base?.fontSize ?? parsed?.fontSize ?? 12,
+            font: base?.font ?? PdfStandardFont.helvetica,
+            align: align ?? parsed?.alignment ?? PdfTextAlign.left,
+            color: base?.color ?? parsed?.color ?? 0x000000,
+            fillColor: parsed?.fillColor,
+            strokeColor: parsed?.borderColor ?? 0xD02020,
+            strokeWidth:
+                (parsed?.borderWidth ?? 0) > 0 ? parsed!.borderWidth : 1,
+            ending: pdfCalloutEnding(annotation) ?? PdfLineEnding.openArrow,
+            pageRotation: _page(page).rotation,
+            author: by,
+            name: nm,
+          );
+          if (line != null && line.length >= 2) {
+            final added = _document.page(page).annotations;
+            if (added.isNotEmpty) {
+              e.reshapeCallout(page, added.last, attach: line.last);
+            }
+          }
+        } else {
+          e.addFreeTextRich(
+            page,
+            rect,
+            runs,
+            align: align ?? parsed?.alignment ?? PdfTextAlign.left,
+            fillColor: parsed?.fillColor,
+            borderColor: parsed?.borderColor,
+            borderWidth:
+                (parsed?.borderWidth ?? 0) > 0 ? parsed!.borderWidth : 1,
+            lineSpacing: lineSpacing ??
+                parsed?.lineSpacing ??
+                kPdfFreeTextDefaultLineSpacing,
+            charSpacing: charSpacing ?? parsed?.charSpacing ?? 0,
+            horizontalScale: fontWidth ??
+                parsed?.horizontalScale ??
+                kPdfFreeTextDefaultHorizontalScale,
+            pageRotation: _page(page).rotation,
+            author: by,
+            name: nm,
+          );
+        }
+
         if (rotation != 0) {
           final added = _document.page(page).annotations;
           if (added.isNotEmpty) {

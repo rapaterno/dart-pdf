@@ -3013,7 +3013,7 @@ class _EditorScreenState extends State<EditorScreen>
                       buildDefaultDragHandles: false,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       itemCount: _tabs.length,
-                      onReorderItem: _reorderTabs,
+                      onReorder: _reorderTabs,
                       itemBuilder: (context, i) => _buildTab(i, tabWidth),
                     ),
                   ),

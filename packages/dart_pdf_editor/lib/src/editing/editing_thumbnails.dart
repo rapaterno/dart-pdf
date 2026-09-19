@@ -685,7 +685,7 @@ class _PdfThumbnailSidebarState extends State<PdfThumbnailSidebar> {
                             padding: EdgeInsets.fromLTRB(
                                 inset, 8, _extraRightPadding + inset, 8),
                             itemCount: controller.document.pageCount,
-                            onReorderItem: controller.movePage,
+                            onReorder: controller.movePage,
                             itemBuilder: (context, index) {
                               final tile = _PageTile(
                                 key: _tileKeys[index] ??= GlobalKey(),
