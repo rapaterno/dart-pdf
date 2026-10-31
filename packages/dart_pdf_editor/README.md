@@ -366,6 +366,12 @@ await editing.addDigitalSignature(
 final Uint8List signed = editing.bytes; // PAdES B-B, validated on commit
 ```
 
+A runnable mobile-oriented custom toolbar and tool-chest sample is in
+[`example/lib/custom_editor_chrome.dart`](example/lib/custom_editor_chrome.dart).
+It shows the controller lifecycle, custom tool selection, measurement scale
+configuration, saved-markup placement, undo/redo, and save wiring without
+using package internals.
+
 The [example app](example) is a thin shell over `PdfEditorView` (with a
 toggle that swaps in `PdfReader`) plus the app-side concerns: file
 open/save dialogs, theme mode, and Flutter overlays pinned onto PDF

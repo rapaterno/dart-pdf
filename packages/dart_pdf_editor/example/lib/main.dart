@@ -20,6 +20,7 @@ import 'demo_brand_assets.dart';
 import 'demo_document.dart';
 import 'error_log.dart';
 import 'feedback.dart';
+import 'custom_editor_chrome.dart';
 import 'persistent_cache.dart';
 import 'platform_fonts.dart';
 import 'recent_files.dart';
@@ -1645,62 +1646,62 @@ class _ViewerScreenState extends State<ViewerScreen> {
         },
       },
       child: Scaffold(
-        appBar: AppBar(
-          leading: _buildAppMenu(tab),
-          leadingWidth: _appMenuLeadingWidth,
-          centerTitle: false,
-          title:
-              _tabs.isEmpty ? const Text('dart-pdf viewer') : _buildTabStrip(),
-          titleSpacing: _tabs.isEmpty ? null : 8,
-          actions: [
-            if (tab?.session != null && !tab!.isComparison)
-              PopupMenuButton<int>(
-                key: const ValueKey('dartpdf-worker-pool-menu'),
-                tooltip: _workerPoolTooltip,
-                icon: Icon(_performance.mode.isAuto
-                    ? Icons.auto_awesome
-                    : Icons.memory),
-                onSelected: _setPerformanceMode,
-                itemBuilder: (context) => [
-                  CheckedPopupMenuItem<int>(
-                    key: const ValueKey('dartpdf-worker-pool-auto'),
-                    value: 0,
-                    checked: _performance.mode.isAuto,
-                    child: Text(appL10n(context).exWorkerAuto),
-                  ),
-                  const PopupMenuDivider(),
-                  CheckedPopupMenuItem<int>(
-                    key: const ValueKey('dartpdf-worker-pool-off'),
-                    value: 1,
-                    checked: _performance.mode.workerCount == 1,
-                    child: Text(appL10n(context).exSingleWorker),
-                  ),
-                  for (final size in const [2, 3, 4, 6])
-                    CheckedPopupMenuItem<int>(
-                      key: ValueKey('dartpdf-worker-pool-$size'),
-                      value: size,
-                      checked: _performance.mode.workerCount == size,
-                      child: Text(appL10n(context).exWorkersCount(size)),
-                    ),
-                ],
-              ),
-            if (tab?.viewer != null)
-              ListenableBuilder(
-                listenable: tab!.viewer!,
-                builder: (context, _) => !tab.viewer!.hasSelection
-                    ? const SizedBox.shrink()
-                    : IconButton(
-                        icon: const Icon(Icons.copy),
-                        tooltip: appL10n(context).exCopySelectedText,
-                        onPressed: () async {
-                          await tab.viewer!.copySelection();
-                          if (!context.mounted) return;
-                          _toast(appL10n(context).exCopiedToClipboard);
-                        },
-                      ),
-              ),
-          ],
-        ),
+        // appBar: AppBar(
+        //   leading: _buildAppMenu(tab),
+        //   leadingWidth: _appMenuLeadingWidth,
+        //   centerTitle: false,
+        //   title:
+        //       _tabs.isEmpty ? const Text('dart-pdf viewer') : _buildTabStrip(),
+        //   titleSpacing: _tabs.isEmpty ? null : 8,
+        //   actions: [
+        //     if (tab?.session != null && !tab!.isComparison)
+        //       PopupMenuButton<int>(
+        //         key: const ValueKey('dartpdf-worker-pool-menu'),
+        //         tooltip: _workerPoolTooltip,
+        //         icon: Icon(_performance.mode.isAuto
+        //             ? Icons.auto_awesome
+        //             : Icons.memory),
+        //         onSelected: _setPerformanceMode,
+        //         itemBuilder: (context) => [
+        //           CheckedPopupMenuItem<int>(
+        //             key: const ValueKey('dartpdf-worker-pool-auto'),
+        //             value: 0,
+        //             checked: _performance.mode.isAuto,
+        //             child: Text(appL10n(context).exWorkerAuto),
+        //           ),
+        //           const PopupMenuDivider(),
+        //           CheckedPopupMenuItem<int>(
+        //             key: const ValueKey('dartpdf-worker-pool-off'),
+        //             value: 1,
+        //             checked: _performance.mode.workerCount == 1,
+        //             child: Text(appL10n(context).exSingleWorker),
+        //           ),
+        //           for (final size in const [2, 3, 4, 6])
+        //             CheckedPopupMenuItem<int>(
+        //               key: ValueKey('dartpdf-worker-pool-$size'),
+        //               value: size,
+        //               checked: _performance.mode.workerCount == size,
+        //               child: Text(appL10n(context).exWorkersCount(size)),
+        //             ),
+        //         ],
+        //       ),
+        //     if (tab?.viewer != null)
+        //       ListenableBuilder(
+        //         listenable: tab!.viewer!,
+        //         builder: (context, _) => !tab.viewer!.hasSelection
+        //             ? const SizedBox.shrink()
+        //             : IconButton(
+        //                 icon: const Icon(Icons.copy),
+        //                 tooltip: appL10n(context).exCopySelectedText,
+        //                 onPressed: () async {
+        //                   await tab.viewer!.copySelection();
+        //                   if (!context.mounted) return;
+        //                   _toast(appL10n(context).exCopiedToClipboard);
+        //                 },
+        //               ),
+        //       ),
+        //   ],
+        // ),
         // each tab is keyed so switching rebuilds against its own
         // controllers (which keep the edits and scroll position alive);
         // only the active tab is mounted, so there's one viewer at a time
@@ -1760,47 +1761,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                                 pageOverlayBuilder:
                                     tab.isDemo ? _demoOverlays : null,
                               )
-                            : PdfEditorView(
-                                key: _pdfShellKey(tab, 'editor'),
-                                documentId: tab.title,
-                                controller: tab.session,
-                                viewerController: tab.viewer,
-                                performance: _performance,
-                                tileRasterBackend: _tileRasterBackend,
-                                rasterCache: _rasterCache,
-                                textCache: _textCache,
-                                pageLayout: _pageLayout,
+                            : CustomEditorChromeScreen(
+                                key: _pdfShellKey(tab, 'custom-editor'),
+                                bytes: tab.session!.bytes,
                                 onSave: (saved) => unawaited(_saveAs(saved)),
-                                alwaysAllowSave: tab.isExtracted,
-                                onPickPdfToInsert: _pickPdfBytes,
-                                onExportPages: (bytes) =>
-                                    _openExtracted([bytes], tab.title),
-                                onSplitPages: (outputs) =>
-                                    _openExtracted(outputs, tab.title),
-                                onAction: _onAction,
-                                pageOverlayBuilder:
-                                    tab.isDemo ? _demoOverlays : null,
-                                annotationMenuBuilder: _annotationMenuActions,
-                                contextMenuEnabled: _contextMenuEnabled,
-                                onContextMenuRequested: _contextMenuEnabled
-                                    ? null
-                                    : _onContextMenuRequested,
-                                formImagePicker: _pickFormImage,
-                                imagePicker: _pickImage,
-                                fontPicker: _pickFont,
-                                onSnapshot: _saveSnapshot,
-                                onPlaceSignature: (context,
-                                        {required pageIndex,
-                                        required pageRect}) =>
-                                    _placeDigitalSignature(
-                                  context,
-                                  tab,
-                                  pageIndex: pageIndex,
-                                  pageRect: pageRect,
-                                ),
-                                onShareReflowImage: (context, png) =>
-                                    _saveImageBytes(
-                                        png, 'figure.png', 'image/png'),
                               ),
       ),
     );

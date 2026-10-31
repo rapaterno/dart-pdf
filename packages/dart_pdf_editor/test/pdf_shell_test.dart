@@ -2187,6 +2187,24 @@ void main() {
       expect(prefs.showThumbnailSidebar, isFalse);
     });
 
+    testWidgets('reader forwards single-page paging to its viewer',
+        (tester) async {
+      final prefs = PdfEditingPreferences();
+      await prefs.ready;
+      addTearDown(prefs.dispose);
+      await pump(
+        tester,
+        PdfReader(
+          bytes: buildMultiPagePdf(3),
+          preferences: prefs,
+          singlePagePaging: true,
+        ),
+      );
+
+      expect(
+          tester.widget<PdfViewer>(find.byType(PdfViewer)).singlePage, isTrue);
+    });
+
     testWidgets('compact reader: the thumbnail strip is a bottom sheet',
         (tester) async {
       final prefs = PdfEditingPreferences();

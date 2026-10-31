@@ -143,6 +143,7 @@ class PdfReader extends StatefulWidget {
     this.textMenuBuilder,
     this.contextMenuEnabled = true,
     this.onContextMenuRequested,
+    this.singlePagePaging = false,
     this.pageLayout = const PdfPageLayout.verticalContinuous(),
     this.initialFit = PdfViewerFit.page,
     this.backgroundColor,
@@ -200,6 +201,7 @@ class PdfReader extends StatefulWidget {
     this.textMenuBuilder,
     this.contextMenuEnabled = true,
     this.onContextMenuRequested,
+    this.singlePagePaging = false,
     this.pageLayout = const PdfPageLayout.verticalContinuous(),
     this.initialFit = PdfViewerFit.page,
     this.backgroundColor,
@@ -326,6 +328,10 @@ class PdfReader extends StatefulWidget {
 
   /// See [PdfViewer.onContextMenuRequested].
   final PdfContextMenuHost? onContextMenuRequested;
+
+  /// Shows one page at a time. Use the thumbnail panel or
+  /// [PdfViewerController.jumpToPage] to navigate between pages.
+  final bool singlePagePaging;
 
   /// See [PdfViewer.pageLayout].
   final PdfPageLayout pageLayout;
@@ -615,6 +621,7 @@ class _PdfReaderState extends State<PdfReader> {
                           textMenuBuilder: widget.textMenuBuilder,
                           contextMenuEnabled: widget.contextMenuEnabled,
                           onContextMenuRequested: widget.onContextMenuRequested,
+                          singlePage: widget.singlePagePaging,
                           pageLayout: widget.pageLayout,
                           initialFit: widget.initialFit,
                           backgroundColor: widget.backgroundColor,

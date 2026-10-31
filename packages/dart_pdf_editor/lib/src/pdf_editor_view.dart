@@ -267,6 +267,7 @@ class PdfEditorView extends StatefulWidget {
     this.toolbarLeading = const [],
     this.toolbarTrailing = const [],
     this.toolbarBuilder,
+    this.singlePagePaging = false,
     this.pageLayout = const PdfPageLayout.verticalContinuous(),
     this.initialFit = PdfViewerFit.page,
     this.backgroundColor,
@@ -364,6 +365,7 @@ class PdfEditorView extends StatefulWidget {
     this.toolbarLeading = const [],
     this.toolbarTrailing = const [],
     this.toolbarBuilder,
+    this.singlePagePaging = false,
     this.pageLayout = const PdfPageLayout.verticalContinuous(),
     this.initialFit = PdfViewerFit.page,
     this.backgroundColor,
@@ -648,6 +650,10 @@ class PdfEditorView extends StatefulWidget {
   /// [PdfEditorFeatures.toolbar] still gates this builder. Set that feature to
   /// false to disable all toolbar chrome regardless of this value.
   final PdfEditorToolbarBuilder? toolbarBuilder;
+
+  /// Shows one page at a time. Use the toggleable thumbnail panel or
+  /// [PdfViewerController.jumpToPage] to navigate between pages.
+  final bool singlePagePaging;
 
   /// See [PdfViewer.pageLayout].
   final PdfPageLayout pageLayout;
@@ -1630,6 +1636,7 @@ class _PdfEditorViewState extends State<PdfEditorView> {
                             ? 144
                             : 0,
                         pageLayout: widget.pageLayout,
+                        singlePage: widget.singlePagePaging,
                         initialFit: widget.initialFit,
                         toolShortcuts: availableShortcuts,
                         backgroundColor: widget.backgroundColor,

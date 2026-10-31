@@ -1319,6 +1319,7 @@ class PdfViewer extends StatefulWidget {
     this.pageSpacing = 12,
     this.trailingPadding = 0,
     this.pageLayout = const PdfPageLayout.verticalContinuous(),
+    this.singlePage = false,
     this.initialFit = PdfViewerFit.page,
     this.initialViewport,
     this.minZoom = 0.25,
@@ -1690,6 +1691,12 @@ class PdfViewer extends StatefulWidget {
   /// [PdfPageLayout]. Switching it at runtime keeps the current page in
   /// view and re-applies [initialFit] against the new axis.
   final PdfPageLayout pageLayout;
+
+  /// Whether to present only the current page.
+  ///
+  /// [PdfViewerController.jumpToPage] replaces the mounted page. Direct
+  /// canvas scrolling cannot change pages while this is enabled.
+  final bool singlePage;
 
   /// The zoom the document opens at: the whole first page visible
   /// (default, like desktop browser viewers) or filling the viewport

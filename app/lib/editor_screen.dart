@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_info.dart';
 import 'autosave.dart';
 import 'command_palette.dart';
+import 'custom_editor/custom_pdf_editor.dart';
 import 'devtools.dart';
 import 'devtools_panel.dart';
 import 'digital_signature.dart';
@@ -91,9 +92,8 @@ String _openTracePercent(int fetched, int? total) => total == null || total <= 0
     : (fetched * 100 / total).toStringAsFixed(1);
 
 /// The editor's main screen: a strip of open-document tabs over the drop-in
-/// [PdfEditorView] / [PdfReader] shells, which carry all the PDF chrome
-/// (search, page number, panels, toolbar). The screen supplies the edit
-/// sessions, file handling, recents, dirty-state, and app-side wiring.
+/// [CustomPdfEditor] / [PdfReader] shells. The screen supplies edit sessions,
+/// file handling, recents, dirty-state, and app-side wiring.
 class EditorScreen extends StatefulWidget {
   const EditorScreen({
     super.key,
@@ -382,7 +382,7 @@ class _EditorScreenState extends State<EditorScreen>
   DocumentTab? get _active =>
       _tabs.isEmpty ? null : _tabs[_activeIndex.clamp(0, _tabs.length - 1)];
 
-  /// Whole-app read-only toggle: swaps [PdfEditorView] for [PdfReader].
+  /// Whole-app read-only toggle: swaps [CustomPdfEditor] for [PdfReader].
   bool _readOnly = false;
   bool _digitallySigning = false;
 
@@ -2642,38 +2642,6 @@ class _EditorScreenState extends State<EditorScreen>
         pdfLabel: appL10n(context).fileTypePdf);
   }
 
-  /// Saves the pages exported out of [tab] (the thumbnail panels' Export
-  /// actions) and then opens what was written in a new tab, so the pages the
-  /// user just pulled out are in front of them rather than only on disk. The
-  /// source document is untouched - an export reads it, it never edits it.
-  ///
-  /// The new tab adopts the save destination as its origin when the platform
-  /// gives us one (a desktop save dialog), so Save writes straight back to the
-  /// file that was just created. A browser download or a share sheet has no
-  /// path to adopt, so the tab opens over the exported bytes alone and its
-  /// first Save asks where they should go.
-  Future<void> _exportPages(DocumentTab tab, Uint8List bytes) async {
-    final result = await _saveAsDocument(context, bytes, tab.title);
-    if (!mounted) return;
-    if (result.succeeded) {
-      final path = result.path;
-      final bookmark =
-          path == null ? null : await securityBookmarkForPath(path);
-      if (!mounted) return;
-      _openBytes(
-        bytes,
-        path == null
-            ? ensurePdfName(tab.title)
-            : path.split(RegExp(r'[/\\]')).last,
-        originPath: path,
-        originBookmark: bookmark,
-      );
-    }
-    // Up to here the export said nothing at all, so a write that failed
-    // (a full disk, a folder gone read-only) passed in silence.
-    if (result.message != null) _toast(result.message!);
-  }
-
   /// Mobile picks are app-managed copies; their title is the share filename.
   /// Keep the live edit session and its saved baseline while renaming the copy.
   Future<void> _renameDocument(DocumentTab tab) async {
@@ -2962,36 +2930,6 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  Future<void> _exportSelectedContentImage(
-    BuildContext exportContext,
-    DocumentTab tab,
-    PdfSelectedContentImage image,
-  ) async {
-    final name = selectedContentImageFileName(tab.title, image.pageIndex + 1);
-    final result = await saveImageBytesAs(
-        exportContext, image.pngBytes, name, 'image/png',
-        imageLabel: appL10n(exportContext).fileTypeImages);
-    if (mounted && result.message != null) _toast(result.message!);
-  }
-
-  Future<void> _exportCustomStamps(
-    BuildContext exportContext,
-    List<PdfCustomStamp> stamps,
-  ) async {
-    final result = await exportCustomStampsAs(exportContext, stamps,
-        stampLabel: appL10n(exportContext).fileTypeStampBundle);
-    if (mounted && result.message != null) _toast(result.message!);
-  }
-
-  Future<List<PdfCustomStamp>?> _importCustomStamps(BuildContext _) async {
-    try {
-      return await importCustomStamps(appL10n(context).fileTypeStampBundle);
-    } catch (e) {
-      if (mounted) _toast(appL10n(context).editorCouldNotImportStamps('$e'));
-      return null;
-    }
-  }
-
   // --- link actions --------------------------------------------------------
 
   /// GoTo and named page actions never reach here (the viewer follows them).
@@ -3020,22 +2958,6 @@ class _EditorScreenState extends State<EditorScreen>
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) _toast(appL10n(context).editorCouldNotOpenUrl('$url'));
     }
-  }
-
-  List<PdfAnnotationMenuItem> _annotationMenuActions(
-      BuildContext context, PdfAnnotationMenuRequest request) {
-    final contents = request.primary?.contents;
-    if (contents == null || contents.isEmpty) return const [];
-    return [
-      PdfAnnotationMenuItem(
-        label: appL10n(context).editorCopyText,
-        icon: Icons.copy_outlined,
-        onSelected: (request) {
-          Clipboard.setData(ClipboardData(text: contents));
-          _toast(appL10n(context).editorAnnotationTextCopied);
-        },
-      ),
-    ];
   }
 
   /// Shows a transient message. [duration] overrides the default for the rare
@@ -3903,7 +3825,6 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Widget _buildBody(DocumentTab? tab) {
-    final compact = _isCompactWidth(context);
     final pageRasterCachePolicy =
         AppDevTools.instance.pageRasterCachePolicy.value;
     final pageRasterWarmPolicy =
@@ -3982,71 +3903,18 @@ class _EditorScreenState extends State<EditorScreen>
         // an authoring choice, so the View options menu drops "Page color…"
         // here and keeps it in edit mode.
         features: const PdfReaderFeatures(pageColorEditable: false),
+        singlePagePaging: true,
         pageRasterCachePolicy: pageRasterCachePolicy,
         pageRasterWarmPolicy: pageRasterWarmPolicy,
         tileRasterBackend: tileRasterBackend,
       );
     }
-    return PdfEditorView(
+    return CustomPdfEditor(
       key: ValueKey(tab),
-      documentId: tab.documentId,
-      controller: tab.session,
+      editing: tab.session!,
       viewerController: tab.viewer,
-      viewMode: _viewMode,
-      pageRasterCachePolicy: pageRasterCachePolicy,
-      pageRasterWarmPolicy: pageRasterWarmPolicy,
-      tileRasterBackend: tileRasterBackend,
       onSave: (_) => unawaited(_save(tab)),
-      onSaveAs: (_) => unawaited(_save(tab, saveAs: true)),
-      showSaveButton: !compact,
-      saveButtonIcon: _usesMobileShare ? Icons.share_outlined : Icons.save_alt,
-      saveButtonLabel: _usesMobileShare
-          ? WidgetsLocalizations.of(context).shareButtonLabel
-          : null,
-      // The shell enables Save off its *own* session history, which misses two
-      // cases the app knows about. A brand-new untitled document has no on-disk
-      // origin yet, so Save (button + Ctrl/⌘+S) stays live even before the
-      // first edit - the first save writes the file via the Save As flow. And a
-      // crash-recovered document opens at the revision it was lost on, so the
-      // session sees no edits of its own while the app knows the file on disk
-      // is still behind - without this the user could not save the very work we
-      // just handed back.
-      alwaysAllowSave: tab.isUnsaved || tab.isDirty,
-      onPickPdfToInsert: () => pickPdfBytes(appL10n(context).fileTypePdf),
-      // a PDF dragged in from the desktop can be dropped between two page
-      // thumbnails; the drop lands its pages exactly there
-      thumbnailDropController: _thumbnailDrop,
-      onExportPages: (bytes) => unawaited(_exportPages(tab, bytes)),
       onAction: _onAction,
-      annotationMenuBuilder: _annotationMenuActions,
-      formImagePicker: (context, field) => pickImageBytesFromSource(context),
-      imagePicker: pickImageBytesFromSource,
-      systemPdfPasteProvider: (context) =>
-          (widget.pdfClipboardReader ?? readPdfFromClipboard)(),
-      systemImagePasteProvider: (context) =>
-          (widget.imageClipboardReader ?? readImageFromClipboard)(),
-      systemTextPasteProvider: (context) =>
-          (widget.textClipboardReader ?? readTextFromClipboard)(),
-      onExportSelectedContentImage: (context, image) =>
-          _exportSelectedContentImage(context, tab, image),
-      onExportCustomStamps: _exportCustomStamps,
-      onImportCustomStamps: _importCustomStamps,
-      // The Snapshot tool keeps a vector copy on the in-app clipboard for
-      // paste-back; desktop also offers PDF and PNG on the system clipboard.
-      onSnapshot: clipboardSnapshotHandler(
-        writer: widget.imageClipboardWriter,
-        snapshotWriter: widget.snapshotClipboardWriter,
-        onResult: (copied) {
-          if (!mounted) return;
-          _toast(copied
-              ? appL10n(context).editorSnapshotCopied
-              : appL10n(context).editorSnapshotCopyFailed);
-        },
-      ),
-      // The signature-box tool: drag a box, then pick an identity and
-      // appearance and cryptographically sign into that rectangle.
-      onPlaceSignature: (context, {required pageIndex, required pageRect}) =>
-          _digitallySign(tab, placement: (page: pageIndex, rect: pageRect)),
     );
   }
 
@@ -4946,6 +4814,7 @@ class _ProgressivePreview extends StatelessWidget {
             controller: tab.viewer,
             preferences: preferences,
             viewMode: viewMode,
+            singlePagePaging: true,
             onAction: onAction,
             pageRasterCachePolicy: pageRasterCachePolicy,
             pageRasterWarmPolicy: pageRasterWarmPolicy,
